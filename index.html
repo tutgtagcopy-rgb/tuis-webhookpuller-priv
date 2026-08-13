@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tuis Webhook Puller</title>
+
+    <style>
+        body {
+            margin: 0;
+            background: #111;
+            color: white;
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .box {
+            width: 650px;
+            padding: 30px;
+            background: #1d1d1d;
+            border: 2px solid #444;
+            border-radius: 8px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 0;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 12px 18px;
+            background: #333;
+            border: 1px solid #666;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        .button:hover {
+            background: #444;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        #fileName {
+            margin: 15px 0;
+            color: #aaa;
+            word-break: break-all;
+        }
+
+        #status {
+            margin: 15px 0;
+        }
+
+        #results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #101010;
+            border: 1px solid #333;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .result {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #222;
+            border: 1px solid #444;
+            border-radius: 4px;
+            word-break: break-all;
+            font-family: monospace;
+        }
+
+        .none {
+            color: #888;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="box">
+
+    <h1>Tuis Webhook Puller</h1>
+
+    <label class="button" for="unityFile">
+        assign data.unity3d
+    </label>
+
+    <input id="unityFile" type="file" accept=".unity3d">
+
+    <div id="fileName">no file assigned</div>
+
+    <button class="button" id="searchButton">
+        search for webhooks
+    </button>
+
+    <div id="status"></div>
+
+    <div id="results">
+        <div class="none">no search performed</div>
+    </div>
+
+</div>
+
+<script>
+    let selectedFile = null;
+
+    const unityFile = document.getElementById("unityFile");
+    const fileName = document.getElementById("fileName");
+    const status = document.getElementById("status");
+    const results = document.getElementById("results");
+    const searchButton = document.getElementById("searchButton");
+
+    unityFile.addEventListener("change", function () {
+        selectedFile = this.files[0];
+
+        if (!selectedFile) {
+            fileName.textContent = "no file assigned";
+            return;
+        }
+
+        if (!selectedFile.name.toLowerCase().endsWith(".unity3d")) {
+            selectedFile = null;
+            fileName.textContent = "invalid file";
+            status.textContent = "please select a .unity3d file";
+            return;
+        }
+
+        fileName.textContent = "assigned: " + selectedFile.name;
+        status.textContent = "file ready";
+        results.innerHTML = '<div class="none">press search for webhooks</div>';
+    });
+
+    searchButton.addEventListener("click", async function () {
+        if (!selectedFile) {
+            status.textContent = "assign a data.unity3d file first";
+            return;
+        }
+
+        status.textContent = "searching...";
+        results.innerHTML = "";
+
+        try {
+            const buffer = await selectedFile.arrayBuffer();
+
+            const bytes = new Uint8Array(buffer);
+
+            let text = "";
+
+            for (let i = 0; i < bytes.length; i++) {
+                const byte = bytes[i];
+
+                if (byte >= 32 && byte <= 126) {
+                    text += String.fromCharCode(byte);
+                } else {
+                    text += " ";
+                }
+            }
+
+            const pattern =
+                /https:\/\/discord\.com\/api\/webhooks\/[0-9]+\/[A-Za-z0-9._~+/=-]+/g;
+
+            const matches = text.match(pattern) || [];
+
+            const uniqueMatches = [...new Set(matches)];
+
+            if (uniqueMatches.length === 0) {
+                results.innerHTML =
+                    '<div class="none">no matching webhook strings found</div>';
+
+                status.textContent = "search complete — 0 found";
+                return;
+            }
+
+            uniqueMatches.forEach(function (webhook) {
+                const div = document.createElement("div");
+                div.className = "result";
+                div.textContent = webhook;
+                results.appendChild(div);
+            });
+
+            status.textContent =
+                "search complete — " + uniqueMatches.length + " found";
+
+        } catch (error) {
+            status.textContent = "error reading file";
+            results.innerHTML =
+                '<div class="none">' +
+                error.message +
+                '</div>';
+        }
+    });
+</script>
+
+</body>
+</html>
